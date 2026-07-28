@@ -1,0 +1,50 @@
+<svg width="640" height="820" viewBox="0 0 640 820" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500&amp;family=Instrument+Sans:wght@500&amp;display=swap');
+      .wordmark { font-family: 'Fraunces', Georgia, 'Times New Roman', serif; }
+      .tagline { font-family: 'Instrument Sans', Arial, sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="640" height="820" fill="#F5F6F8"/>
+
+  <!-- Anel externo fino -->
+  <circle cx="320" cy="200" r="136" fill="none" stroke="#14213D" stroke-width="1.5"/>
+
+  <!-- Disco principal -->
+  <circle cx="320" cy="200" r="122" fill="#14213D"/>
+
+  <!-- Bastão de Asclépio (símbolo médico grego original) -->
+  <g stroke="#C6A15B" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- bastão -->
+    <line x1="320" y1="128" x2="320" y2="272"/>
+    <!-- serpente enrolada -->
+    <path d="M296,148 C348,168 292,188 348,208 C292,228 348,248 300,262"/>
+    <!-- cabeça da serpente -->
+    <path d="M296,148 L282,138 M296,148 L286,158"/>
+  </g>
+  <circle cx="283" cy="139" r="2.6" fill="#C6A15B"/>
+
+  <!-- Ramos de louro estilizados, ladeando a base do círculo -->
+  <g fill="#C6A15B">
+    <ellipse cx="222" cy="272" rx="10" ry="4" transform="rotate(-30 222 272)"/>
+    <ellipse cx="236" cy="286" rx="10" ry="4" transform="rotate(-15 236 286)"/>
+    <ellipse cx="252" cy="296" rx="10" ry="4" transform="rotate(0 252 296)"/>
+
+    <ellipse cx="418" cy="272" rx="10" ry="4" transform="rotate(30 418 272)"/>
+    <ellipse cx="404" cy="286" rx="10" ry="4" transform="rotate(15 404 286)"/>
+    <ellipse cx="388" cy="296" rx="10" ry="4" transform="rotate(0 388 296)"/>
+  </g>
+
+  <!-- Nome da marca -->
+  <text x="320" y="430" text-anchor="middle" class="wordmark" font-size="68" fill="#14213D" letter-spacing="0.5">Kosium</text>
+
+  <!-- Faixa decorativa grega (meandro) -->
+  <g transform="translate(193, 462)" stroke="#C6A15B" stroke-width="2.5" fill="none" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M0,20 L0,0 L20,0 L20,12 L8,12 L8,20 M26,20 L26,0 L46,0 L46,12 L34,12 L34,20 M52,20 L52,0 L72,0 L72,12 L60,12 L60,20 M78,20 L78,0 L98,0 L98,12 L86,12 L86,20 M104,20 L104,0 L124,0 L124,12 L112,12 L112,20 M130,20 L130,0 L150,0 L150,12 L138,12 L138,20 M156,20 L156,0 L176,0 L176,12 L164,12 L164,20 M182,20 L182,0 L202,0 L202,12 L190,12 L190,20 M208,20 L208,0 L228,0 L228,12 L216,12 L216,20 M234,20 L234,0 L254,0 L254,12 L242,12 L242,20"/>
+  </g>
+
+  <!-- Slogan -->
+  <text x="320" y="522" text-anchor="middle" class="tagline" font-size="16" fill="#6B8CA3" letter-spacing="1.5">Inspired by Kos. Built for the future.</text>
+</svg>
