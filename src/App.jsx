@@ -6730,7 +6730,62 @@ function Cadastro({ doctorProfile, setDoctorProfile, clinicProfile, setClinicPro
    APP ROOT
 ----------------------------------------------------------*/
 
+// Código de acesso da versão beta — troque aqui quando quiser gerar um novo código
+// para um novo grupo de testadores.
+const BETA_ACCESS_CODE = "KOSIUM236812";
+
+function BetaGate({ onUnlock }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState(false);
+
+  function tryUnlock() {
+    if (code.trim().toUpperCase() === BETA_ACCESS_CODE) {
+      setError(false);
+      onUnlock();
+    } else {
+      setError(true);
+    }
+  }
+
+  return (
+    <div className="min-h-screen c-bg-F5F6F8 flex items-center justify-center p-6 font-body">
+      <div className="max-w-sm w-full text-center">
+        <LogoMark size={40} className="mx-auto mb-4" />
+        <h1 className="font-display text-2xl mb-2">Kosium — versão beta</h1>
+        <p className="text-sm c-text-6B8CA3 mb-6">
+          Esta é uma versão de testes fechada. Digite o código de acesso que você recebeu para entrar.
+        </p>
+        <input
+          value={code}
+          onChange={(e) => { setCode(e.target.value); setError(false); }}
+          onKeyDown={(e) => e.key === "Enter" && tryUnlock()}
+          placeholder="Código de acesso"
+          className={`w-full border rounded-lg px-3 py-2.5 text-sm text-center tracking-widest mb-2 ${error ? "border-red-400" : "c-border-D9DCE1"}`}
+          autoFocus
+        />
+        {error && <p className="text-xs text-red-500 mb-3">Código incorreto. Confira e tente de novo.</p>}
+        <button
+          onClick={tryUnlock}
+          className="w-full c-bg-14213D text-white text-sm font-medium py-2.5 rounded-lg hoverc-bg-0B1729 mt-2"
+        >
+          Entrar na versão beta
+        </button>
+        <p className="text-xs c-text-6B8CA3 mt-6">
+          Ainda não é a versão final — os dados são fictícios e nada aqui está conectado a um banco de dados real.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [betaUnlocked, setBetaUnlocked] = useState(() => {
+    try {
+      return localStorage.getItem("kosium_beta_unlocked") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [view, setView] = useState("landing"); // landing | app
   const [userPlan, setUserPlan] = useState("avancado");
   const [userRole, setUserRole] = useState("medico"); // medico | recepcao
@@ -6941,6 +6996,19 @@ export default function App() {
       default:
         screen = <Dashboard userPlan={userPlan} appointments={appointments} transactions={transactions} />;
     }
+  }
+
+  if (!betaUnlocked) {
+    return (
+      <BetaGate
+        onUnlock={() => {
+          try {
+            localStorage.setItem("kosium_beta_unlocked", "true");
+          } catch {}
+          setBetaUnlocked(true);
+        }}
+      />
+    );
   }
 
   return (
