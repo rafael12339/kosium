@@ -1083,6 +1083,18 @@ function AuthModal({ mode, onClose, onSubmit }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [nomeClinica, setNomeClinica] = useState("");
+  const [tentouEnviar, setTentouEnviar] = useState(false);
+
+  const emailValido = /\S+@\S+\.\S+/.test(email);
+  const senhaValida = senha.trim().length >= 4;
+  const nomeValido = !isSignup || nomeClinica.trim().length >= 2;
+  const formValido = emailValido && senhaValida && nomeValido;
+
+  function tentarEnviar() {
+    setTentouEnviar(true);
+    if (!formValido) return;
+    onSubmit({ email, nomeClinica });
+  }
 
   return (
     <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4">
@@ -1094,40 +1106,51 @@ function AuthModal({ mode, onClose, onSubmit }) {
           </button>
         </div>
 
-        <div className="space-y-3 mb-6">
+        <div className="space-y-3 mb-2">
           {isSignup && (
-            <input
-              value={nomeClinica}
-              onChange={(e) => setNomeClinica(e.target.value)}
-              placeholder="Nome da clínica ou do médico"
-              className="w-full border c-border-D9DCE1 rounded-lg px-3 py-2 font-body text-sm"
-            />
+            <div>
+              <input
+                value={nomeClinica}
+                onChange={(e) => setNomeClinica(e.target.value)}
+                placeholder="Nome da clínica ou do médico"
+                className={`w-full border rounded-lg px-3 py-2 font-body text-sm ${tentouEnviar && !nomeValido ? "border-red-400" : "c-border-D9DCE1"}`}
+              />
+              {tentouEnviar && !nomeValido && <p className="text-xs text-red-500 mt-1">Informe o nome da clínica ou do médico.</p>}
+            </div>
           )}
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="E-mail"
-            type="email"
-            className="w-full border c-border-D9DCE1 rounded-lg px-3 py-2 font-body text-sm"
-          />
-          <input
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            placeholder="Senha"
-            type="password"
-            className="w-full border c-border-D9DCE1 rounded-lg px-3 py-2 font-body text-sm"
-          />
+          <div>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="E-mail"
+              type="email"
+              className={`w-full border rounded-lg px-3 py-2 font-body text-sm ${tentouEnviar && !emailValido ? "border-red-400" : "c-border-D9DCE1"}`}
+            />
+            {tentouEnviar && !emailValido && <p className="text-xs text-red-500 mt-1">Digite um e-mail válido.</p>}
+          </div>
+          <div>
+            <input
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              placeholder="Senha"
+              type="password"
+              className={`w-full border rounded-lg px-3 py-2 font-body text-sm ${tentouEnviar && !senhaValida ? "border-red-400" : "c-border-D9DCE1"}`}
+            />
+            {tentouEnviar && !senhaValida && <p className="text-xs text-red-500 mt-1">A senha precisa ter pelo menos 4 caracteres.</p>}
+          </div>
         </div>
 
         <button
-          onClick={onSubmit}
-          className="w-full c-bg-14213D text-white font-body text-sm font-medium py-2.5 rounded-lg hoverc-bg-0B1729"
+          onClick={tentarEnviar}
+          className="w-full c-bg-14213D text-white font-body text-sm font-medium py-2.5 rounded-lg hoverc-bg-0B1729 mt-4"
         >
           {isSignup ? "Criar minha conta" : "Entrar"}
         </button>
 
         <p className="font-body text-xs c-text-6B8CA3 text-center mt-4">
-          Simulação de {isSignup ? "cadastro" : "login"} — não requer dados reais neste protótipo.
+          {isSignup
+            ? "Ao criar sua conta, você começa com a clínica vazia — sem pacientes ou agenda de exemplo."
+            : "Versão beta — preencha os campos para entrar."}
         </p>
       </Card>
     </div>
@@ -4769,7 +4792,7 @@ function VitalsModal({ onClose, onSave }) {
 }
 
 function Prontuario({ patients, setPatients }) {
-  const [selectedId, setSelectedId] = useState(patients[0].id);
+  const [selectedId, setSelectedId] = useState(patients[0]?.id ?? null);
   const [query, setQuery] = useState("");
   const [newNote, setNewNote] = useState("");
   const [signingRecord, setSigningRecord] = useState(null);
@@ -4903,6 +4926,7 @@ function Prontuario({ patients, setPatients }) {
           </div>
         </Card>
 
+        {selected ? (
         <Card className="p-6 md:col-span-2">
           <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
             <h2 className="font-display text-xl">{patientLabel(selected)}</h2>
@@ -5160,6 +5184,13 @@ function Prontuario({ patients, setPatients }) {
             </button>
           </div>
         </Card>
+        ) : (
+          <Card className="p-10 md:col-span-2 flex flex-col items-center justify-center text-center">
+            <Users size={28} className="c-text-D9DCE1 mb-3" />
+            <p className="font-body text-sm font-medium mb-1">Nenhum paciente cadastrado ainda</p>
+            <p className="font-body text-xs c-text-6B8CA3">Clique em "Novo paciente" para começar o prontuário.</p>
+          </Card>
+        )}
       </div>
 
       {signingRecord && (
@@ -6578,7 +6609,7 @@ function Atendimento({ doctorProfile, clinicProfile, patients, setPatients, quic
    CADASTRO — dados do médico e da clínica (Anvisa/CFM)
 ----------------------------------------------------------*/
 
-function Cadastro({ doctorProfile, setDoctorProfile, clinicProfile, setClinicProfile, rooms, setRooms }) {
+function Cadastro({ doctorProfile, setDoctorProfile, clinicProfile, setClinicProfile, rooms, setRooms, onLoadDemoData }) {
   const [newRoom, setNewRoom] = useState("");
 
   function addRoom() {
@@ -6719,9 +6750,19 @@ function Cadastro({ doctorProfile, setDoctorProfile, clinicProfile, setClinicPro
         </div>
       </Card>
 
-      <button className="c-bg-14213D text-white font-body text-sm font-medium px-5 py-2.5 rounded-lg flex items-center gap-2 hoverc-bg-0B1729">
-        <Save size={15} /> Salvar cadastro
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button className="c-bg-14213D text-white font-body text-sm font-medium px-5 py-2.5 rounded-lg flex items-center gap-2 hoverc-bg-0B1729">
+          <Save size={15} /> Salvar cadastro
+        </button>
+        {onLoadDemoData && (
+          <button
+            onClick={onLoadDemoData}
+            className="border c-border-D9DCE1 c-text-6B8CA3 font-body text-sm font-medium px-5 py-2.5 rounded-lg flex items-center gap-2 hoverc-bg-F5F6F8"
+          >
+            <RefreshCw size={15} /> Carregar dados de demonstração
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -6835,10 +6876,43 @@ export default function App() {
     setActiveScreen("atendimento");
   }
 
+  function emptySectors(list) {
+    return list.map((s) => ({
+      ...s,
+      rooms: s.rooms.map((r) => ({
+        ...r,
+        beds: r.beds.map((b) => ({
+          ...b,
+          patientName: null, admittedAt: null, status: null, evolutions: [], medications: [],
+          idade: null, sexo: "", comorbidades: "", motivoInternacao: "", observacoes: "",
+          risco: null, riscoNota: "", riscoPor: null, riscoEm: null,
+        })),
+      })),
+    }));
+  }
+
   function enterApp(plan) {
     setUserPlan(plan);
     setActiveScreen("dashboard");
     setView("app");
+    // Começa com a clínica vazia — sem pacientes/agenda/financeiro de exemplo,
+    // pra quem for testar (colegas na beta) preencher com dados próprios de teste.
+    setAppointments([]);
+    setTransactions([]);
+    setPatients([]);
+    setPharmacyItems([]);
+    setStockItems([]);
+    setSectors((prev) => emptySectors(prev));
+  }
+
+  // Recarrega os dados de demonstração — útil só pra quem quiser ver as telas já preenchidas.
+  function loadDemoData() {
+    setAppointments(initialAppointments);
+    setTransactions(initialTransactions);
+    setPatients(initialPatients);
+    setPharmacyItems(initialPharmacyItems);
+    setStockItems(initialStockItems);
+    setSectors(initialSectors);
   }
 
   function changeRole(role) {
@@ -6944,6 +7018,7 @@ export default function App() {
             setClinicProfile={setClinicProfile}
             rooms={rooms}
             setRooms={setRooms}
+            onLoadDemoData={loadDemoData}
           />
         );
         break;
