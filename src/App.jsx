@@ -268,6 +268,11 @@ function patientLabel(p) {
   return bd ? `${p.name} - ${bd}` : p.name;
 }
 
+// Gera um número de prontuário sequencial simples, só pra identificação visual do paciente.
+function generateRecordNumber() {
+  return String(Math.floor(100000 + Math.random() * 899999));
+}
+
 // Calcula o status de chegada do paciente a partir do horário agendado:
 // chegou (verde) · aguardando (cinza, dentro de 15min) · atrasado (laranja, 15-45min) · não compareceu (vermelho, 45min+)
 function checkinStatus(appointment, now) {
@@ -329,6 +334,8 @@ const initialPatients = [
     id: 1,
     name: "Marina Costa",
     birthDate: "1988-04-12",
+    motherName: "Regina Costa",
+    recordNumber: "100234",
     lastVisit: "01/07/2026",
     records: [
       { id: 1, date: "01/07/2026", note: "Consulta de rotina. Pressão arterial normal. Retorno em 3 meses.", signed: true },
@@ -341,6 +348,8 @@ const initialPatients = [
     id: 2,
     name: "João Pereira",
     birthDate: "1975-11-30",
+    motherName: "Aparecida Pereira",
+    recordNumber: "100187",
     lastVisit: "28/06/2026",
     records: [
       { id: 1, date: "10/05/2026", note: "Queixa de dor lombar. Solicitado raio-X.", signed: true },
@@ -3728,8 +3737,10 @@ function GoogleSyncBanner({ synced, onSync }) {
   );
 }
 
-function Agenda({ appointments, setAppointments, userRole, doctorRoom, setDoctorRoom, rooms, onCallPatient, onGoToAttendance }) {
-  const [form, setForm] = useState({ time: "", patient: "", type: "Consulta", priority: "rotina" });
+function Agenda({ appointments, setAppointments, patients, userRole, doctorRoom, setDoctorRoom, rooms, onCallPatient, onGoToAttendance, onGoToPatients }) {
+  const [form, setForm] = useState({ time: "", patientId: "", type: "Consulta", priority: "rotina" });
+  const [patientSearch, setPatientSearch] = useState("");
+  const [patientSearchOpen, setPatientSearchOpen] = useState(false);
   const [gcalSynced, setGcalSynced] = useState(false);
   const [waTarget, setWaTarget] = useState(null);
   const [now, setNow] = useState(new Date());
@@ -3774,12 +3785,26 @@ function Agenda({ appointments, setAppointments, userRole, doctorRoom, setDoctor
     );
   }
 
+  const selectedPatient = patients.find((p) => String(p.id) === String(form.patientId));
+
+  function pickPatient(p) {
+    setForm({ ...form, patientId: p.id });
+    setPatientSearch(patientLabel(p));
+    setPatientSearchOpen(false);
+  }
+
+  const filteredPatientResults = patientSearch.trim().length >= 2
+    ? patients.filter((p) => p.name.toLowerCase().includes(patientSearch.toLowerCase()))
+    : [];
+
   function addAppointment() {
-    if (!form.time || !form.patient) return;
+    if (!form.time || !selectedPatient) return;
     setAppointments((prev) =>
-      [...prev, { id: Date.now(), status: "aguardando", checkinAt: null, ...form }].sort((a, b) => a.time.localeCompare(b.time))
+      [...prev, { id: Date.now(), status: "aguardando", checkinAt: null, ...form, patient: selectedPatient.name }]
+        .sort((a, b) => a.time.localeCompare(b.time))
     );
-    setForm({ time: "", patient: "", type: "Consulta", priority: "rotina" });
+    setForm({ time: "", patientId: "", type: "Consulta", priority: "rotina" });
+    setPatientSearch("");
   }
 
   function markConfirmed(id) {
@@ -3907,13 +3932,64 @@ function Agenda({ appointments, setAppointments, userRole, doctorRoom, setDoctor
               onChange={(e) => setForm({ ...form, time: e.target.value })}
               className="w-full border c-border-D9DCE1 rounded-lg px-3 py-2 font-body text-sm"
             />
-            <input
-              type="text"
-              placeholder="Nome do paciente"
-              value={form.patient}
-              onChange={(e) => setForm({ ...form, patient: e.target.value })}
-              className="w-full border c-border-D9DCE1 rounded-lg px-3 py-2 font-body text-sm"
-            />
+
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={patients.length === 0 ? "Nenhum paciente cadastrado" : "Buscar paciente cadastrado…"}
+                value={patientSearch}
+                disabled={patients.length === 0}
+                onChange={(e) => {
+                  setPatientSearch(e.target.value);
+                  setPatientSearchOpen(true);
+                  if (form.patientId) setForm({ ...form, patientId: "" });
+                }}
+                onFocus={() => setPatientSearchOpen(true)}
+                className="w-full border c-border-D9DCE1 rounded-lg px-3 py-2 font-body text-sm disabled:opacity-50"
+              />
+              {patientSearchOpen && filteredPatientResults.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full bg-white border c-border-D9DCE1 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                  {filteredPatientResults.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => pickPatient(p)}
+                      className="w-full text-left px-3 py-2 hoverc-bg-F5F6F8 border-b c-border-EDEFF3 last:border-b-0"
+                    >
+                      <p className="font-body text-sm c-text-16202E">{p.name}</p>
+                      <p className="font-body text-[11px] c-text-6B8CA3">
+                        Nasc. {formatBirthDate(p.birthDate) || "—"}
+                        {p.motherName ? ` · Mãe: ${p.motherName}` : ""}
+                        {p.recordNumber ? ` · Prontuário nº ${p.recordNumber}` : ""}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {patients.length === 0 && (
+                <p className="font-body text-[11px] c-text-6B8CA3 mt-1.5">
+                  Cadastre o paciente antes de agendar.{" "}
+                  {onGoToPatients && (
+                    <button type="button" onClick={onGoToPatients} className="underline c-text-14213D">
+                      Ir para Pacientes
+                    </button>
+                  )}
+                </p>
+              )}
+            </div>
+
+            {selectedPatient && (
+              <div className="flex items-center justify-between c-bg-F5F6F8 rounded-lg px-3 py-2">
+                <div>
+                  <p className="font-body text-xs font-medium c-text-14213D">{selectedPatient.name}</p>
+                  <p className="font-body text-[10px] c-text-6B8CA3">
+                    Nasc. {formatBirthDate(selectedPatient.birthDate) || "—"}
+                    {selectedPatient.recordNumber ? ` · Prontuário nº ${selectedPatient.recordNumber}` : ""}
+                  </p>
+                </div>
+                <CheckCircle2 size={14} className="c-text-2E7D46" />
+              </div>
+            )}
             <select
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
@@ -3942,7 +4018,8 @@ function Agenda({ appointments, setAppointments, userRole, doctorRoom, setDoctor
             </div>
             <button
               onClick={addAppointment}
-              className="w-full c-bg-14213D text-white font-body text-sm font-medium py-2.5 rounded-lg hoverc-bg-0B1729"
+              disabled={!form.time || !selectedPatient}
+              className="w-full c-bg-14213D text-white font-body text-sm font-medium py-2.5 rounded-lg hoverc-bg-0B1729 disabled:opacity-50"
             >
               Adicionar
             </button>
@@ -4101,13 +4178,15 @@ function SignModal({ record, onClose, onSigned }) {
   const [stage, setStage] = useState("qrcode"); // qrcode -> signing -> done
 
   function proceed() {
-    if (stage === "qrcode") {
-      setStage("signing");
-      setTimeout(() => setStage("done"), 1400);
-    } else if (stage === "done") {
-      onSigned();
-      onClose();
-    }
+    if (stage !== "qrcode") return;
+    setStage("signing");
+    setTimeout(() => {
+      setStage("done");
+      setTimeout(() => {
+        onSigned();
+        onClose();
+      }, 1000);
+    }, 1400);
   }
 
   return (
@@ -4135,15 +4214,19 @@ function SignModal({ record, onClose, onSigned }) {
         )}
 
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 border c-border-D9DCE1 rounded-lg py-2 font-body text-sm">
+          <button
+            onClick={onClose}
+            disabled={stage !== "qrcode"}
+            className="flex-1 border c-border-D9DCE1 rounded-lg py-2 font-body text-sm disabled:opacity-40"
+          >
             Cancelar
           </button>
           <button
             onClick={proceed}
-            disabled={stage === "signing"}
+            disabled={stage !== "qrcode"}
             className="flex-1 c-bg-14213D text-white rounded-lg py-2 font-body text-sm disabled:opacity-50"
           >
-            {stage === "done" ? "Concluir" : "Assinar"}
+            {stage === "qrcode" ? "Assinar" : stage === "signing" ? "Assinando…" : "Concluído"}
           </button>
         </div>
       </Card>
@@ -4479,7 +4562,7 @@ function Pacientes({ patients, setPatients, userPlan, transferSectors, setTransf
   const filtered = patients.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()));
 
   function saveNewPatient(form) {
-    setPatients((prev) => [...prev, { id: Date.now(), lastVisit: "—", records: [], ...form }]);
+    setPatients((prev) => [...prev, { id: Date.now(), recordNumber: generateRecordNumber(), lastVisit: "—", records: [], ...form }]);
     setShowAddPatient(false);
   }
 
@@ -4862,7 +4945,7 @@ function Prontuario({ patients, setPatients }) {
 
   function saveNewPatient(form) {
     const id = Date.now();
-    setPatients((prev) => [...prev, { id, lastVisit: "—", records: [], vitals: [], ...form }]);
+    setPatients((prev) => [...prev, { id, recordNumber: generateRecordNumber(), lastVisit: "—", records: [], vitals: [], ...form }]);
     setSelectedId(id);
     setShowAddPatient(false);
   }
@@ -6871,7 +6954,9 @@ export default function App() {
   }
 
   function goToAttendance(appointment) {
-    const match = patients.find((p) => p.name.toLowerCase() === appointment.patient.toLowerCase());
+    const match = appointment.patientId
+      ? patients.find((p) => String(p.id) === String(appointment.patientId))
+      : patients.find((p) => p.name.toLowerCase() === appointment.patient.toLowerCase());
     setQuickAttendPatientId(match ? match.id : null);
     setActiveScreen("atendimento");
   }
@@ -6966,12 +7051,14 @@ export default function App() {
           <Agenda
             appointments={appointments}
             setAppointments={setAppointments}
+            patients={patients}
             userRole={userRole}
             doctorRoom={doctorRoom}
             setDoctorRoom={setDoctorRoom}
             rooms={rooms}
             onCallPatient={callPatient}
             onGoToAttendance={goToAttendance}
+            onGoToPatients={() => setActiveScreen("pacientes")}
           />
         );
         break;
