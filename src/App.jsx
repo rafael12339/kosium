@@ -263,6 +263,27 @@ function formatBirthDate(isoDate) {
   return `${d}/${m}/${y}`;
 }
 
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function addDaysISO(isoDate, delta) {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + delta);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+const WEEKDAYS_BR = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+const MONTHS_BR = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+function formatDateHeaderBR(isoDate) {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return `${WEEKDAYS_BR[date.getDay()]}, ${String(d).padStart(2, "0")} de ${MONTHS_BR[m - 1]} de ${y}`;
+}
+
 function patientLabel(p) {
   const bd = formatBirthDate(p.birthDate);
   return bd ? `${p.name} - ${bd}` : p.name;
@@ -3738,7 +3759,8 @@ function GoogleSyncBanner({ synced, onSync }) {
 }
 
 function Agenda({ appointments, setAppointments, patients, userRole, doctorRoom, setDoctorRoom, rooms, onCallPatient, onGoToAttendance, onGoToPatients }) {
-  const [form, setForm] = useState({ time: "", patientId: "", type: "Consulta", priority: "rotina" });
+  const [selectedDate, setSelectedDate] = useState(todayISO());
+  const [form, setForm] = useState({ time: "", date: todayISO(), patientId: "", type: "Consulta", priority: "rotina" });
   const [patientSearch, setPatientSearch] = useState("");
   const [patientSearchOpen, setPatientSearchOpen] = useState(false);
   const [gcalSynced, setGcalSynced] = useState(false);
@@ -3751,6 +3773,12 @@ function Agenda({ appointments, setAppointments, patients, userRole, doctorRoom,
     const interval = setInterval(() => setNow(new Date()), 30000); // recalcula a cada 30s
     return () => clearInterval(interval);
   }, []);
+
+  // Quando o médico navega pra outro dia, o formulário de novo agendamento já
+  // acompanha — mas ele ainda pode trocar manualmente pra marcar em outro dia.
+  useEffect(() => {
+    setForm((f) => ({ ...f, date: selectedDate }));
+  }, [selectedDate]);
 
   // Portão obrigatório: o médico precisa escolher em qual sala está antes de usar a Agenda.
   // A recepção não passa por essa exigência (não atende em sala própria).
@@ -3798,14 +3826,16 @@ function Agenda({ appointments, setAppointments, patients, userRole, doctorRoom,
     : [];
 
   function addAppointment() {
-    if (!form.time || !selectedPatient) return;
+    if (!form.time || !form.date || !selectedPatient) return;
     setAppointments((prev) =>
       [...prev, { id: Date.now(), status: "aguardando", checkinAt: null, ...form, patient: selectedPatient.name }]
-        .sort((a, b) => a.time.localeCompare(b.time))
+        .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
     );
-    setForm({ time: "", patientId: "", type: "Consulta", priority: "rotina" });
+    setForm({ time: "", date: form.date, patientId: "", type: "Consulta", priority: "rotina" });
     setPatientSearch("");
   }
+
+  const dayAppointments = appointments.filter((a) => (a.date || todayISO()) === selectedDate);
 
   function markConfirmed(id) {
     setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: "confirmado" } : a)));
@@ -3830,7 +3860,39 @@ function Agenda({ appointments, setAppointments, patients, userRole, doctorRoom,
     <div className="p-6 md:p-10">
       <h1 className="font-display text-3xl mb-1">Agenda médica</h1>
       <div className="flex items-center gap-3 flex-wrap mb-6">
-        <p className="font-body c-text-6B8CA3">Terça-feira, 09 de julho de 2026</p>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setSelectedDate((d) => addDaysISO(d, -1))}
+            className="c-text-6B8CA3 hoverc-text-14213D p-1"
+            title="Dia anterior"
+          >
+            <ChevronRight size={16} className="rotate-180" />
+          </button>
+          <label className="font-body c-text-6B8CA3 cursor-pointer relative">
+            {formatDateHeaderBR(selectedDate)}
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+          </label>
+          <button
+            onClick={() => setSelectedDate((d) => addDaysISO(d, 1))}
+            className="c-text-6B8CA3 hoverc-text-14213D p-1"
+            title="Próximo dia"
+          >
+            <ChevronRight size={16} />
+          </button>
+          {selectedDate !== todayISO() && (
+            <button
+              onClick={() => setSelectedDate(todayISO())}
+              className="font-body text-xs c-text-14213D underline ml-1"
+            >
+              Hoje
+            </button>
+          )}
+        </div>
         {userRole === "medico" && doctorRoom && (
           <span className="inline-flex items-center gap-1.5 font-body text-xs c-text-14213D c-bg-F4E9D2-40 rounded-full px-3 py-1">
             <DoorOpen size={12} /> {doctorRoom}
@@ -3850,7 +3912,7 @@ function Agenda({ appointments, setAppointments, patients, userRole, doctorRoom,
       <div className="grid md:grid-cols-3 gap-6">
         <Card className="p-6 md:col-span-2">
           <div className="space-y-2">
-            {appointments.map((a) => {
+            {dayAppointments.map((a) => {
               const status = checkinStatus(a, now);
               return (
               <div key={a.id} className="flex items-center gap-3 font-body text-sm py-3 border-b c-border-EDEFF3 last:border-0">
@@ -3920,18 +3982,31 @@ function Agenda({ appointments, setAppointments, patients, userRole, doctorRoom,
               </div>
               );
             })}
+            {dayAppointments.length === 0 && (
+              <p className="font-body text-sm c-text-6B8CA3 italic py-6 text-center">
+                Nenhum agendamento neste dia.
+              </p>
+            )}
           </div>
         </Card>
 
         <Card className="p-6 h-fit">
           <p className="font-body text-sm font-medium mb-4 flex items-center gap-2"><Plus size={15} /> Novo agendamento</p>
           <div className="space-y-3">
-            <input
-              type="time"
-              value={form.time}
-              onChange={(e) => setForm({ ...form, time: e.target.value })}
-              className="w-full border c-border-D9DCE1 rounded-lg px-3 py-2 font-body text-sm"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                className="w-full border c-border-D9DCE1 rounded-lg px-3 py-2 font-body text-sm"
+              />
+              <input
+                type="time"
+                value={form.time}
+                onChange={(e) => setForm({ ...form, time: e.target.value })}
+                className="w-full border c-border-D9DCE1 rounded-lg px-3 py-2 font-body text-sm"
+              />
+            </div>
 
             <div className="relative">
               <input
